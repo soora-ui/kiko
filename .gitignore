@@ -1,0 +1,12 @@
+node_modules
+dist
+dev-dist
+.env
+.env.local
+.env.*.local
+.DS_Store
+*.log
+.vercel
+
+# код сервера не публикуется в публичный репозиторий — развёрнут на VPS
+server/

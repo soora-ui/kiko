@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-paper text-ink font-sans antialiased;
+  overscroll-behavior-y: none;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px; /* iOS zoom-on-focus прячется при >=16px */
+}
+
+@layer components {
+  /* «Двойной безель»: внешняя обёртка + белое ядро */
+  .bezel {
+    @apply bg-black/[0.03] ring-1 ring-black/5 p-1.5 rounded-[1.75rem];
+  }
+  .bezel-core {
+    @apply bg-white rounded-[calc(1.75rem-0.375rem)] shadow-soft;
+  }
+  .pill-primary {
+    @apply rounded-full bg-sakura text-white font-semibold
+      transition-all duration-500 ease-koneko active:scale-95;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}

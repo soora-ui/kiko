@@ -16,11 +16,13 @@ export default function QuestionCardItem({
   index,
   onSwipeClose,
   onSwipeSnooze,
+  onStatusTap,
 }: {
   question: Question
   index: number
   onSwipeClose: () => void
   onSwipeSnooze: () => void
+  onStatusTap: () => void
 }) {
   const navigate = useNavigate()
   const x = useMotionValue(0)
@@ -65,7 +67,16 @@ export default function QuestionCardItem({
       >
         <div className="bezel-core p-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge status={question.status} />
+            {/* тап по бейджу — быстрая перекидка статуса */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onStatusTap()
+              }}
+              className="min-h-[28px]"
+            >
+              <StatusBadge status={question.status} />
+            </button>
             <PriorityBadge priority={question.priority} />
             <span className="ml-auto text-[11px] text-muted">
               {hangLabel(question.created_at)}

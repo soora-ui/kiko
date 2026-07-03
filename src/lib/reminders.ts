@@ -3,11 +3,15 @@ import type { Settings } from './settings'
 
 const dowIso = (d: Date) => (d.getDay() === 0 ? 7 : d.getDay())
 
+const inLunch = (d: Date, s: Settings) =>
+  s.lunchEnabled && d.getHours() >= s.lunchStart && d.getHours() < s.lunchEnd
+
 export function isWorkTime(d: Date, s: Settings): boolean {
   return (
     s.workDays.includes(dowIso(d)) &&
     d.getHours() >= s.workStart &&
-    d.getHours() < s.workEnd
+    d.getHours() < s.workEnd &&
+    !inLunch(d, s)
   )
 }
 
@@ -24,9 +28,19 @@ export function nextWorkMorning(
   return d
 }
 
-/** Если момент выпал на ночь/выходные — переносим на ближайшее рабочее утро. */
+/** Ночь/выходные → рабочее утро; обед → сразу после обеда. */
 export function clampToWorkWindow(d: Date, s: Settings): Date {
   if (isWorkTime(d, s)) return d
+  if (
+    s.workDays.includes(dowIso(d)) &&
+    d.getHours() >= s.workStart &&
+    d.getHours() < s.workEnd &&
+    inLunch(d, s)
+  ) {
+    const after = new Date(d)
+    after.setHours(s.lunchEnd, 0, 0, 0)
+    return after
+  }
   const morning = new Date(d)
   morning.setHours(s.workStart, 30, 0, 0)
   // ещё не наступило рабочее утро того же дня

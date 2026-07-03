@@ -13,6 +13,17 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
 /** Просроченный/невалидный токен → событие, App покажет экран входа. */
 export const UNAUTHORIZED_EVENT = 'kiko-unauthorized'
 
+export class ApiError extends Error {
+  status: number
+  body: Record<string, unknown> | null
+
+  constructor(status: number, body: Record<string, unknown> | null) {
+    super((body?.error as string) ?? `Ошибка ${status}`)
+    this.status = status
+    this.body = body
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -29,11 +40,11 @@ export async function apiFetch<T>(
   if (res.status === 401 && path !== '/login') {
     clearToken()
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
-    throw new Error('Сессия истекла — войди заново')
+    throw new ApiError(401, { error: 'Сессия истекла — войди заново' })
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? `Ошибка ${res.status}`)
+    throw new ApiError(res.status, body)
   }
   return res.json() as Promise<T>
 }

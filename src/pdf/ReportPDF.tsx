@@ -10,11 +10,13 @@ import { STATUS_LABEL } from '../lib/types'
 import { fmtDuration, reportStats, type ReportData } from '../lib/stats'
 
 // Без регистрации кириллического шрифта react-pdf выдаёт кракозябры.
+// BASE_URL обязателен: на GitHub Pages сайт живёт в /kiko/, и абсолютный
+// путь /fonts/… даёт 404.
 Font.register({
   family: 'PT Sans',
   fonts: [
-    { src: '/fonts/PTSans-Regular.ttf' },
-    { src: '/fonts/PTSans-Bold.ttf', fontWeight: 700 },
+    { src: `${import.meta.env.BASE_URL}fonts/PTSans-Regular.ttf` },
+    { src: `${import.meta.env.BASE_URL}fonts/PTSans-Bold.ttf`, fontWeight: 700 },
   ],
 })
 

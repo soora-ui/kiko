@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { SignOut } from '@phosphor-icons/react'
+import { useEffect, useRef, useState } from 'react'
+import { SignOut, Trash } from '@phosphor-icons/react'
 import { clearToken } from '../lib/http'
 import {
   fetchSettings,
@@ -13,7 +13,13 @@ import {
   sendTestPush,
   type PushState,
 } from '../lib/push'
-import { exportAllData } from '../lib/api'
+import {
+  createDocument,
+  deleteDocument,
+  exportAllData,
+  fetchDocuments,
+} from '../lib/api'
+import type { KnowledgeDoc } from '../lib/types'
 
 const DAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
@@ -30,11 +36,21 @@ export default function SettingsScreen({ onLogout }: { onLogout: () => void }) {
   const [pushState, setPushState] = useState<PushState>('default')
   const [testStatus, setTestStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [docs, setDocs] = useState<KnowledgeDoc[]>([])
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [docStatus, setDocStatus] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getPushState().then(setPushState)
     // серверные настройки — источник правды (по ним шлются пуши)
     fetchSettings().then(setSettings).catch(() => {})
+    fetchDocuments()
+      .then((r) => {
+        setDocs(r.documents)
+        setAiEnabled(r.ai_enabled)
+      })
+      .catch(() => {})
   }, [])
 
   const update = (patch: Partial<Settings>) => {
@@ -73,6 +89,23 @@ export default function SettingsScreen({ onLogout }: { onLogout: () => void }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  const uploadDocs = async (files: FileList | null) => {
+    if (!files?.length) return
+    setDocStatus('Загружаю…')
+    try {
+      for (const file of files) {
+        const content = await file.text()
+        const title = file.name.replace(/\.(txt|md|markdown)$/i, '')
+        const doc = await createDocument(title, content)
+        setDocs((prev) => [doc, ...prev])
+      }
+      setDocStatus('')
+    } catch (e) {
+      setDocStatus(e instanceof Error ? e.message : 'Не удалось загрузить')
+    }
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   const exportJson = async () => {
@@ -125,9 +158,34 @@ export default function SettingsScreen({ onLogout }: { onLogout: () => void }) {
         </p>
       </Section>
 
+      <Section title="Обед без пушей">
+        <label className="flex items-center justify-between min-h-[44px] mb-3">
+          <span className="text-sm">Не беспокоить в обед</span>
+          <Toggle
+            checked={settings.lunchEnabled}
+            onChange={(v) => update({ lunchEnabled: v })}
+          />
+        </label>
+        {settings.lunchEnabled && (
+          <div className="flex items-center gap-3">
+            <TimeSelect
+              value={settings.lunchStart}
+              onChange={(v) => update({ lunchStart: v })}
+            />
+            <span className="text-muted">—</span>
+            <TimeSelect
+              value={settings.lunchEnd}
+              onChange={(v) => update({ lunchEnd: v })}
+            />
+          </div>
+        )}
+      </Section>
+
       <Section title="Вечерний чек">
         <label className="flex items-center justify-between min-h-[44px]">
-          <span className="text-sm">«Закрой хвосты» в 18:30</span>
+          <span className="text-sm">
+            «Закрой хвосты» за полчаса до конца дня
+          </span>
           <Toggle
             checked={settings.eveningCheck}
             onChange={(v) => update({ eveningCheck: v })}
@@ -159,6 +217,54 @@ export default function SettingsScreen({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
         {testStatus && <p className="mt-2 text-xs text-muted">{testStatus}</p>}
+      </Section>
+
+      <Section title="База знаний">
+        <p className="text-xs text-muted mb-3">
+          Инструкции и мануалы (.txt / .md) — по ним Кико ищет возможные решения
+          новых вопросов. Опыт из закрытых вопросов копится сам.
+          {!aiEnabled && ' Сейчас ИИ выключен: на сервере нет ANTHROPIC_API_KEY.'}
+        </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".txt,.md,.markdown,text/plain,text/markdown"
+          multiple
+          className="hidden"
+          onChange={(e) => uploadDocs(e.target.files)}
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="w-full rounded-full bg-black/[0.03] py-3 min-h-[48px] font-medium mb-3"
+        >
+          Загрузить документы
+        </button>
+        {docStatus && <p className="mb-2 text-xs text-terra">{docStatus}</p>}
+        {docs.length > 0 && (
+          <div className="space-y-1.5">
+            {docs.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center gap-2 rounded-2xl bg-black/[0.03] px-4 py-2.5"
+              >
+                <span className="text-sm flex-1 line-clamp-1">
+                  {d.kind === 'experience' ? '✨ ' : '📄 '}
+                  {d.title}
+                </span>
+                <button
+                  onClick={async () => {
+                    await deleteDocument(d.id)
+                    setDocs((prev) => prev.filter((x) => x.id !== d.id))
+                  }}
+                  aria-label="Удалить"
+                  className="grid place-items-center h-9 w-9 rounded-full text-muted"
+                >
+                  <Trash size={16} weight="light" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
 
       <Section title="Данные">

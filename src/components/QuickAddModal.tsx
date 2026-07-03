@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { PaperPlaneTilt } from '@phosphor-icons/react'
-import type { Priority } from '../lib/types'
+import { PaperPlaneTilt, Warning } from '@phosphor-icons/react'
+import { Link } from 'react-router-dom'
+import type { Priority, Question } from '../lib/types'
+import { STATUS_LABEL } from '../lib/types'
 import { createQuestion } from '../lib/api'
+import { ApiError } from '../lib/http'
 
 const priorities: { value: Priority; label: string }[] = [
   { value: 'urgent', label: '🔥 Срочно' },
@@ -16,14 +19,18 @@ function guessAuthor(text: string): string {
   return m ? m[1].trim() : ''
 }
 
+type Duplicate = Pick<Question, 'id' | 'summary' | 'status' | 'author'>
+
 export default function QuickAddModal({
   open,
   onClose,
   onSaved,
+  parentId = null,
 }: {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  parentId?: string | null
 }) {
   const [text, setText] = useState('')
   const [priority, setPriority] = useState<Priority>('normal')
@@ -31,6 +38,7 @@ export default function QuickAddModal({
   const [authorTouched, setAuthorTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [duplicates, setDuplicates] = useState<Duplicate[]>([])
   const ref = useRef<HTMLTextAreaElement>(null)
 
   const suggested = useMemo(() => guessAuthor(text), [text])
@@ -43,12 +51,13 @@ export default function QuickAddModal({
       setAuthor('')
       setAuthorTouched(false)
       setError('')
+      setDuplicates([])
       // автофокус после анимации открытия
       setTimeout(() => ref.current?.focus(), 80)
     }
   }, [open])
 
-  const save = async () => {
+  const save = async (force = false) => {
     if (!text.trim() || busy) return
     setBusy(true)
     setError('')
@@ -57,10 +66,17 @@ export default function QuickAddModal({
         raw_text: text.trim(),
         author: effectiveAuthor.trim() || null,
         priority,
+        parent_id: parentId,
+        force,
       })
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сохранить')
+      // Похожий вопрос уже открыт — предупреждаем, даём создать осознанно
+      if (e instanceof ApiError && e.status === 409) {
+        setDuplicates((e.body?.duplicates as Duplicate[]) ?? [])
+      } else {
+        setError(e instanceof Error ? e.message : 'Не удалось сохранить')
+      }
     } finally {
       setBusy(false)
     }
@@ -86,10 +102,18 @@ export default function QuickAddModal({
           >
             <div className="bezel">
               <div className="bezel-core p-4">
+                {parentId && (
+                  <p className="mb-2 px-1 text-xs font-semibold text-muted uppercase tracking-wide">
+                    Связанная задача
+                  </p>
+                )}
                 <textarea
                   ref={ref}
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value)
+                    setDuplicates([])
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save()
                   }}
@@ -134,17 +158,48 @@ export default function QuickAddModal({
 
                 {error && <p className="mt-2 text-sm text-terra">{error}</p>}
 
-                <button
-                  onClick={save}
-                  disabled={!text.trim() || busy}
-                  className="mt-4 w-full pill-primary disabled:opacity-40
-                    flex items-center justify-between pl-6 pr-2 py-2 min-h-[52px]"
-                >
-                  <span>{busy ? 'Сохраняю…' : 'Сохранить'}</span>
-                  <span className="grid place-items-center h-10 w-10 rounded-full bg-white/25">
-                    <PaperPlaneTilt size={20} weight="light" />
-                  </span>
-                </button>
+                {duplicates.length > 0 && (
+                  <div className="mt-3 rounded-2xl bg-terra/10 p-4">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-terra mb-2">
+                      <Warning size={16} weight="light" />
+                      Похоже, такой вопрос уже есть
+                    </p>
+                    <div className="space-y-1.5 mb-3">
+                      {duplicates.map((d) => (
+                        <Link
+                          key={d.id}
+                          to={`/question/${d.id}`}
+                          onClick={onClose}
+                          className="block text-sm underline underline-offset-2 line-clamp-1"
+                        >
+                          {STATUS_LABEL[d.status]} · {d.summary}
+                        </Link>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => save(true)}
+                      disabled={busy}
+                      className="w-full rounded-full bg-white py-2.5 min-h-[44px]
+                        text-sm font-semibold disabled:opacity-40"
+                    >
+                      Всё равно создать
+                    </button>
+                  </div>
+                )}
+
+                {duplicates.length === 0 && (
+                  <button
+                    onClick={() => save()}
+                    disabled={!text.trim() || busy}
+                    className="mt-4 w-full pill-primary disabled:opacity-40
+                      flex items-center justify-between pl-6 pr-2 py-2 min-h-[52px]"
+                  >
+                    <span>{busy ? 'Сохраняю…' : 'Сохранить'}</span>
+                    <span className="grid place-items-center h-10 w-10 rounded-full bg-white/25">
+                      <PaperPlaneTilt size={20} weight="light" />
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

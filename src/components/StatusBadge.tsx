@@ -5,6 +5,9 @@ const statusStyles: Record<Status, string> = {
   new: 'bg-sakura/15 text-[#B5787D]',
   in_progress: 'bg-[#E8D9A0]/25 text-[#9A8A4A]',
   waiting: 'bg-[#A0B8C3]/20 text-[#5F7E8C]',
+  clarification: 'bg-[#C3A0B8]/20 text-[#8C5F7E]',
+  dev: 'bg-[#A0A8C3]/20 text-[#5F668C]',
+  postponed: 'bg-black/[0.05] text-muted',
   closed: 'bg-sage/20 text-[#6E8A66]',
 }
 

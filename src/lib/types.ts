@@ -1,4 +1,12 @@
-export type Status = 'new' | 'in_progress' | 'waiting' | 'closed'
+export type Status =
+  | 'new'
+  | 'in_progress'
+  | 'waiting'
+  | 'clarification'
+  | 'dev'
+  | 'postponed'
+  | 'closed'
+
 export type Priority = 'urgent' | 'normal' | 'low'
 
 export interface Question {
@@ -12,9 +20,14 @@ export interface Question {
   status: Status
   priority: Priority
   waiting_for: string | null
+  clarification: string | null
   remind_at: string | null
   remind_interval_minutes: number
   snooze_count: number
+  awaiting_ack: boolean
+  parent_id: string | null
+  ai_suggestion: string | null
+  ai_followup: string | null
   resolution: string | null
 }
 
@@ -34,12 +47,33 @@ export interface ActivityEvent {
   detail: Record<string, unknown> | null
 }
 
+export interface KnowledgeDoc {
+  id: string
+  created_at: string
+  title: string
+  kind: 'manual' | 'experience'
+  size: number
+}
+
 export const STATUS_LABEL: Record<Status, string> = {
   new: 'Новый',
   in_progress: 'В работе',
   waiting: 'Жду ответа',
-  closed: 'Закрыт',
+  clarification: 'Требуется уточнение',
+  dev: 'Передал программисту',
+  postponed: 'Отложено',
+  closed: 'Выполнено',
 }
+
+/** Открытые статусы в порядке секций на главном экране. */
+export const OPEN_STATUSES: Exclude<Status, 'closed'>[] = [
+  'new',
+  'in_progress',
+  'clarification',
+  'waiting',
+  'dev',
+  'postponed',
+]
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   urgent: 'Срочно',

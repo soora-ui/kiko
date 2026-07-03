@@ -1,18 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BellRinging } from '@phosphor-icons/react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  BellRinging,
+  Lightbulb,
+  Plus,
+  Sparkle,
+} from '@phosphor-icons/react'
 import type { ActivityEvent, Question, Status } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import {
+  answerFollowup,
   closeQuestion,
+  fetchChildren,
   fetchLog,
   getQuestion,
   setRemindAt,
-  setStatus,
 } from '../lib/api'
 import { fmtDateTime } from '../lib/reminders'
 import { PriorityBadge, StatusBadge } from '../components/StatusBadge'
 import CloseSheet from '../components/CloseSheet'
+import StatusSheet from '../components/StatusSheet'
+import QuickAddModal from '../components/QuickAddModal'
 
 const eventLabel = (e: ActivityEvent): string => {
   switch (e.event) {
@@ -38,17 +48,25 @@ export default function QuestionDetailScreen() {
   const navigate = useNavigate()
   const [q, setQ] = useState<Question | null>(null)
   const [log, setLog] = useState<ActivityEvent[]>([])
-  const [waitingFor, setWaitingFor] = useState('')
+  const [children, setChildren] = useState<Question[]>([])
   const [closeOpen, setCloseOpen] = useState(false)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [childAddOpen, setChildAddOpen] = useState(false)
   const [remindPickerOpen, setRemindPickerOpen] = useState(false)
   const [remindValue, setRemindValue] = useState('')
+  const [followupAnswer, setFollowupAnswer] = useState('')
+  const [followupBusy, setFollowupBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
-    const question = await getQuestion(id)
+    const [question, events, kids] = await Promise.all([
+      getQuestion(id),
+      fetchLog(id),
+      fetchChildren(id),
+    ])
     setQ(question)
-    setWaitingFor(question?.waiting_for ?? '')
-    setLog(await fetchLog(id))
+    setLog(events)
+    setChildren(kids)
   }, [id])
 
   useEffect(() => {
@@ -63,21 +81,6 @@ export default function QuestionDetailScreen() {
     )
   }
 
-  const changeStatus = async (status: Status) => {
-    if (status === q.status) return
-    if (status === 'closed') {
-      setCloseOpen(true)
-      return
-    }
-    const updated = await setStatus(q, status, {
-      waiting_for: status === 'waiting' ? waitingFor || null : null,
-    })
-    setQ(updated)
-    setLog(await fetchLog(q.id))
-  }
-
-  const statuses: Status[] = ['new', 'in_progress', 'waiting', 'closed']
-
   return (
     <div className="mx-auto max-w-md px-4 pt-safe pb-8">
       <header className="pt-6 pb-4 flex items-center gap-3">
@@ -88,11 +91,27 @@ export default function QuestionDetailScreen() {
         >
           <ArrowLeft size={20} weight="light" />
         </button>
-        <div className="flex gap-2">
-          <StatusBadge status={q.status} />
+        <div className="flex gap-2 items-center">
+          {q.status !== 'closed' ? (
+            <button onClick={() => setStatusOpen(true)} className="min-h-[32px]">
+              <StatusBadge status={q.status} />
+            </button>
+          ) : (
+            <StatusBadge status={q.status} />
+          )}
           <PriorityBadge priority={q.priority} />
         </div>
       </header>
+
+      {q.parent_id && (
+        <Link
+          to={`/question/${q.parent_id}`}
+          className="mb-3 flex items-center gap-1.5 px-2 text-sm text-muted"
+        >
+          <ArrowUpRight size={16} weight="light" />
+          К родительскому вопросу
+        </Link>
+      )}
 
       <div className="bezel mb-4">
         <div className="bezel-core p-5">
@@ -102,6 +121,10 @@ export default function QuestionDetailScreen() {
             <p>Создан: {fmtDateTime(q.created_at)}</p>
             {q.remind_at && q.status !== 'closed' && (
               <p>Напомню: {fmtDateTime(q.remind_at)}</p>
+            )}
+            {q.status === 'waiting' && q.waiting_for && <p>Жду: {q.waiting_for}</p>}
+            {q.status === 'clarification' && q.clarification && (
+              <p>Уточнить: {q.clarification}</p>
             )}
           </div>
           {q.resolution && (
@@ -113,44 +136,67 @@ export default function QuestionDetailScreen() {
         </div>
       </div>
 
+      {/* Возможное решение из базы знаний (ИИ) */}
+      {q.ai_suggestion && (
+        <div className="bezel mb-4">
+          <div className="bezel-core p-5">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+              <Lightbulb size={16} weight="light" className="text-sakura" />
+              Возможное решение
+            </p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {q.ai_suggestion}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Уточняющий вопрос ИИ после закрытия — пополняет базу опыта */}
+      {q.ai_followup && (
+        <div className="bezel mb-4">
+          <div className="bezel-core p-5">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-2">
+              <Sparkle size={16} weight="light" className="text-sakura" />
+              Кико уточняет
+            </p>
+            <p className="text-sm mb-3">{q.ai_followup}</p>
+            <textarea
+              value={followupAnswer}
+              onChange={(e) => setFollowupAnswer(e.target.value)}
+              placeholder="Твой ответ — попадёт в базу опыта"
+              rows={2}
+              className="w-full rounded-2xl bg-black/[0.03] p-4 outline-none
+                focus:ring-2 focus:ring-sakura/50 resize-none text-[16px]"
+            />
+            <button
+              onClick={async () => {
+                if (!followupAnswer.trim() || followupBusy) return
+                setFollowupBusy(true)
+                try {
+                  setQ(await answerFollowup(q, followupAnswer.trim()))
+                  setFollowupAnswer('')
+                } finally {
+                  setFollowupBusy(false)
+                }
+              }}
+              disabled={!followupAnswer.trim() || followupBusy}
+              className="mt-3 w-full pill-primary py-3 min-h-[48px] disabled:opacity-40"
+            >
+              Сохранить в опыт
+            </button>
+          </div>
+        </div>
+      )}
+
       {q.status !== 'closed' && (
         <>
-          {/* переключение статуса таб-баром */}
-          <div className="flex gap-1.5 mb-4">
-            {statuses.map((s) => (
-              <button
-                key={s}
-                onClick={() => changeStatus(s)}
-                className={`flex-1 rounded-full py-2.5 text-xs font-semibold min-h-[44px]
-                  transition-colors duration-500 ease-koneko
-                  ${
-                    q.status === s
-                      ? 'bg-sakura/20 text-ink ring-1 ring-sakura/40'
-                      : 'bg-black/[0.03] text-muted'
-                  }`}
-              >
-                {STATUS_LABEL[s]}
-              </button>
-            ))}
-          </div>
-
-          {q.status === 'waiting' && (
-            <input
-              value={waitingFor}
-              onChange={(e) => setWaitingFor(e.target.value)}
-              onBlur={async () => {
-                const updated = await setStatus(q, 'waiting', {
-                  waiting_for: waitingFor || null,
-                })
-                setQ(updated)
-              }}
-              placeholder="От кого ждём ответа"
-              className="mb-4 w-full rounded-full bg-black/[0.03] px-5 py-3
-                outline-none focus:ring-2 focus:ring-sakura/50 text-[16px]"
-            />
-          )}
-
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => setStatusOpen(true)}
+              className="flex-1 rounded-full bg-black/[0.03] py-3.5 min-h-[52px] font-medium"
+            >
+              Переместить
+            </button>
             <button
               onClick={() => setCloseOpen(true)}
               className="flex-1 pill-primary !bg-sage py-3.5 min-h-[52px]"
@@ -170,14 +216,14 @@ export default function QuestionDetailScreen() {
               }}
               aria-label="Напомнить в…"
               className="grid place-items-center h-[52px] w-[52px] rounded-full
-                bg-black/[0.03] text-ink"
+                bg-black/[0.03] text-ink shrink-0"
             >
               <BellRinging size={22} weight="light" />
             </button>
           </div>
 
           {remindPickerOpen && (
-            <div className="bezel mb-6">
+            <div className="bezel mb-4">
               <div className="bezel-core p-4 flex items-center gap-2">
                 <input
                   type="datetime-local"
@@ -188,8 +234,7 @@ export default function QuestionDetailScreen() {
                 <button
                   onClick={async () => {
                     if (!remindValue) return
-                    const updated = await setRemindAt(q, new Date(remindValue))
-                    setQ(updated)
+                    setQ(await setRemindAt(q, new Date(remindValue)))
                     setRemindPickerOpen(false)
                     setLog(await fetchLog(q.id))
                   }}
@@ -202,6 +247,36 @@ export default function QuestionDetailScreen() {
           )}
         </>
       )}
+
+      {/* Связанные задачи */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between px-2 mb-2">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
+            Связанные задачи
+          </h2>
+          <button
+            onClick={() => setChildAddOpen(true)}
+            className="flex items-center gap-1 text-xs font-semibold text-sakura min-h-[32px]"
+          >
+            <Plus size={14} weight="bold" />
+            Создать
+          </button>
+        </div>
+        {children.length === 0 ? (
+          <p className="px-2 text-sm text-muted">Пока нет</p>
+        ) : (
+          <div className="space-y-2">
+            {children.map((c) => (
+              <Link key={c.id} to={`/question/${c.id}`} className="block bezel">
+                <div className="bezel-core p-3.5 flex items-center gap-2">
+                  <StatusBadge status={c.status} />
+                  <span className="text-sm line-clamp-1">{c.summary}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* таймлайн истории */}
       <h2 className="text-xs font-semibold text-muted uppercase tracking-wide px-2 mb-2">
@@ -222,6 +297,17 @@ export default function QuestionDetailScreen() {
         ))}
       </div>
 
+      <StatusSheet
+        question={q}
+        open={statusOpen}
+        onClose={() => setStatusOpen(false)}
+        onChanged={(updated) => {
+          setQ(updated)
+          fetchLog(q.id).then(setLog)
+        }}
+        onRequestClose={() => setCloseOpen(true)}
+      />
+
       <CloseSheet
         question={q}
         open={closeOpen}
@@ -230,6 +316,16 @@ export default function QuestionDetailScreen() {
           await closeQuestion(q, resolution)
           setCloseOpen(false)
           navigate('/')
+        }}
+      />
+
+      <QuickAddModal
+        open={childAddOpen}
+        parentId={q.id}
+        onClose={() => setChildAddOpen(false)}
+        onSaved={() => {
+          setChildAddOpen(false)
+          load()
         }}
       />
     </div>

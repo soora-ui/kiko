@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import type { Question } from '../lib/types'
+import type { Question, Status } from '../lib/types'
+import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
 import { closeQuestion, fetchOpenQuestions, snoozeQuestion } from '../lib/api'
 import QuestionCardItem from '../components/QuestionCardItem'
 import CloseSheet from '../components/CloseSheet'
 import SnoozeSheet from '../components/SnoozeSheet'
+import StatusSheet from '../components/StatusSheet'
 import EmptyState from '../components/EmptyState'
 
 export default function TodayScreen() {
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [closing, setClosing] = useState<Question | null>(null)
   const [snoozing, setSnoozing] = useState<Question | null>(null)
+  const [moving, setMoving] = useState<Question | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -28,6 +31,14 @@ export default function TodayScreen() {
   const open = questions ?? []
   const urgent = open.filter((q) => q.priority === 'urgent').length
   const waiting = open.filter((q) => q.status === 'waiting').length
+
+  // Разбивка ленты по статусам (порядок — OPEN_STATUSES)
+  const sections = OPEN_STATUSES.map((status) => ({
+    status,
+    items: open.filter((q) => q.status === status),
+  })).filter((s) => s.items.length > 0)
+
+  let cardIndex = 0
 
   return (
     <div className="mx-auto max-w-md px-4 pt-safe">
@@ -53,17 +64,26 @@ export default function TodayScreen() {
       ) : open.length === 0 ? (
         <EmptyState title="Все вопросы закрыты 🌸" subtitle="Отдыхай" />
       ) : (
-        <AnimatePresence mode="popLayout">
-          {open.map((q, i) => (
-            <QuestionCardItem
-              key={q.id}
-              question={q}
-              index={i}
-              onSwipeClose={() => setClosing(q)}
-              onSwipeSnooze={() => setSnoozing(q)}
-            />
-          ))}
-        </AnimatePresence>
+        sections.map(({ status, items }) => (
+          <section key={status} className="mb-5">
+            <h2 className="flex items-baseline gap-2 text-xs font-semibold text-muted uppercase tracking-wide px-2 mb-2">
+              {STATUS_LABEL[status as Status]}
+              <span className="text-sakura font-bold">{items.length}</span>
+            </h2>
+            <AnimatePresence mode="popLayout">
+              {items.map((q) => (
+                <QuestionCardItem
+                  key={q.id}
+                  question={q}
+                  index={cardIndex++}
+                  onSwipeClose={() => setClosing(q)}
+                  onSwipeSnooze={() => setSnoozing(q)}
+                  onStatusTap={() => setMoving(q)}
+                />
+              ))}
+            </AnimatePresence>
+          </section>
+        ))
       )}
 
       <CloseSheet
@@ -87,6 +107,20 @@ export default function TodayScreen() {
           await snoozeQuestion(snoozing, until)
           setSnoozing(null)
           await load()
+        }}
+      />
+
+      <StatusSheet
+        question={moving}
+        open={moving !== null}
+        onClose={() => setMoving(null)}
+        onChanged={() => {
+          setMoving(null)
+          load()
+        }}
+        onRequestClose={() => {
+          setClosing(moving)
+          setMoving(null)
         }}
       />
     </div>

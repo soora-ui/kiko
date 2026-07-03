@@ -1,5 +1,11 @@
 import { apiFetch } from './http'
-import type { ActivityEvent, Priority, Question, Status } from './types'
+import type {
+  ActivityEvent,
+  KnowledgeDoc,
+  Priority,
+  Question,
+  Status,
+} from './types'
 import { initialRemindAt } from './reminders'
 import { loadSettings } from './settings'
 
@@ -39,10 +45,17 @@ export function fetchLog(questionId: string): Promise<ActivityEvent[]> {
   return apiFetch<ActivityEvent[]>(`/questions/${questionId}/log`)
 }
 
+export function fetchChildren(questionId: string): Promise<Question[]> {
+  return apiFetch<Question[]>(`/questions/${questionId}/children`)
+}
+
+/** Бросает ApiError со status=409 и body.duplicates, если похожий вопрос уже открыт. */
 export function createQuestion(input: {
   raw_text: string
   author: string | null
   priority: Priority
+  parent_id?: string | null
+  force?: boolean
 }): Promise<Question> {
   return apiFetch<Question>('/questions', {
     method: 'POST',
@@ -56,7 +69,7 @@ export function createQuestion(input: {
 export function setStatus(
   q: Question,
   status: Status,
-  extra?: { waiting_for?: string | null },
+  extra?: { waiting_for?: string | null; clarification?: string | null },
 ): Promise<Question> {
   return apiFetch<Question>(`/questions/${q.id}`, {
     method: 'PATCH',
@@ -84,6 +97,35 @@ export function closeQuestion(q: Question, resolution: string): Promise<Question
     body: JSON.stringify({ action: 'close', resolution }),
   })
 }
+
+export function answerFollowup(q: Question, answer: string): Promise<Question> {
+  return apiFetch<Question>(`/questions/${q.id}/followup`, {
+    method: 'POST',
+    body: JSON.stringify({ answer }),
+  })
+}
+
+// ── База знаний ──────────────────────────────────────────────────
+
+export function fetchDocuments(): Promise<{
+  documents: KnowledgeDoc[]
+  ai_enabled: boolean
+}> {
+  return apiFetch('/documents')
+}
+
+export function createDocument(title: string, content: string): Promise<KnowledgeDoc> {
+  return apiFetch<KnowledgeDoc>('/documents', {
+    method: 'POST',
+    body: JSON.stringify({ title, content }),
+  })
+}
+
+export function deleteDocument(id: string): Promise<void> {
+  return apiFetch(`/documents/${id}`, { method: 'DELETE' })
+}
+
+// ── Отчёт и экспорт ──────────────────────────────────────────────
 
 export function fetchQuestionsBetween(
   from: Date,

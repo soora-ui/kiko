@@ -5,6 +5,9 @@ export interface Settings {
   workEnd: number // час конца
   workDays: number[] // 1 = пн … 7 = вс
   eveningCheck: boolean
+  lunchEnabled: boolean // обед без пушей
+  lunchStart: number
+  lunchEnd: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -12,6 +15,9 @@ export const DEFAULT_SETTINGS: Settings = {
   workEnd: 19,
   workDays: [1, 2, 3, 4, 5],
   eveningCheck: false,
+  lunchEnabled: false,
+  lunchStart: 13,
+  lunchEnd: 14,
 }
 
 const KEY = 'kiko-settings'

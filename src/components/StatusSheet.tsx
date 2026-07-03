@@ -16,12 +16,15 @@ export default function StatusSheet({
   onClose,
   onChanged,
   onRequestClose,
+  intent,
 }: {
   question: Question | null
   open: boolean
   onClose: () => void
   onChanged: (updated: Question) => void
   onRequestClose: () => void
+  /** Открыть сразу на вводе (после дропа в колонку waiting/clarification). */
+  intent?: 'waiting' | 'clarification'
 }) {
   const [step, setStep] = useState<'pick' | 'waiting' | 'clarification'>('pick')
   const [input, setInput] = useState('')
@@ -30,10 +33,17 @@ export default function StatusSheet({
 
   useEffect(() => {
     if (open) {
-      setStep('pick')
-      setInput('')
+      setStep(intent ?? 'pick')
+      setInput(
+        intent === 'waiting'
+          ? (question?.waiting_for ?? '')
+          : intent === 'clarification'
+            ? (question?.clarification ?? '')
+            : '',
+      )
       setError('')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   if (!question) return null

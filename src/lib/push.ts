@@ -108,6 +108,29 @@ export async function enablePush(
   return 'subscribed'
 }
 
+/** Подписка есть локально, но могла не доехать до сервера (обрыв при
+ * включении). Идемпотентный upsert — зовём при старте и перед тестовым пушем. */
+export async function syncSubscription(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || Notification.permission !== 'granted') {
+    return false
+  }
+  const reg = await navigator.serviceWorker.getRegistration()
+  const sub = await reg?.pushManager.getSubscription()
+  if (!sub) return false
+  const json = sub.toJSON()
+  await apiFetch('/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({
+      endpoint: sub.endpoint,
+      p256dh: json.keys?.p256dh ?? '',
+      auth: json.keys?.auth ?? '',
+      user_agent: navigator.userAgent,
+    }),
+  })
+  return true
+}
+
 export async function sendTestPush(): Promise<void> {
+  await syncSubscription().catch(() => {})
   await apiFetch('/push/test', { method: 'POST' })
 }

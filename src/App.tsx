@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { getToken, UNAUTHORIZED_EVENT } from './lib/http'
 import { fetchSettings } from './lib/settings'
-import { isIos, isStandalone } from './lib/push'
+import { isIos, isStandalone, syncSubscription } from './lib/push'
 import TabBar from './components/TabBar'
 import QuickAddModal from './components/QuickAddModal'
 import TodayScreen from './screens/TodayScreen'
@@ -36,9 +36,12 @@ export default function App() {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
   }, [])
 
-  // Подтягиваем серверные настройки в локальный кэш
+  // Подтягиваем серверные настройки и досылаем push-подписку,
+  // если она есть локально, но не доехала до сервера
   useEffect(() => {
-    if (authed) fetchSettings().catch(() => {})
+    if (!authed) return
+    fetchSettings().catch(() => {})
+    syncSubscription().catch(() => {})
   }, [authed])
 
   if (!authed) return <AuthScreen onLogin={() => setAuthed(true)} />

@@ -35,7 +35,11 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ttf,woff2}'],
+        // Шрифты PDF и react-pdf-чанк не прекэшируем: они тяжёлые (~2 МБ)
+        // и нужны только на экране отчёта — иначе установка SW на iPhone
+        // качает 3 МБ и «Включить уведомления» висит, пока не докачает.
+        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        globIgnores: ['**/react-pdf*.js', '**/ReportPDF*.js'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),

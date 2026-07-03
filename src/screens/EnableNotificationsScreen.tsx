@@ -9,13 +9,14 @@ import Enso from '../components/Enso'
  */
 export default function EnableNotificationsScreen({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false)
+  const [step, setStep] = useState('')
   const [error, setError] = useState('')
 
   const enable = async () => {
     setBusy(true)
     setError('')
     try {
-      const state = await enablePush()
+      const state = await enablePush(setStep)
       if (state === 'denied') {
         setError(
           'Уведомления запрещены. Включи их в Настройках iOS → Кико → Уведомления.',
@@ -27,6 +28,7 @@ export default function EnableNotificationsScreen({ onDone }: { onDone: () => vo
       setError(e instanceof Error ? e.message : 'Не удалось включить пуши')
     } finally {
       setBusy(false)
+      setStep('')
     }
   }
 
@@ -45,7 +47,7 @@ export default function EnableNotificationsScreen({ onDone }: { onDone: () => vo
         className="w-full max-w-sm pill-primary py-2 pl-6 pr-2 min-h-[56px]
           flex items-center justify-between disabled:opacity-40"
       >
-        <span>{busy ? 'Включаю…' : 'Включить напоминания'}</span>
+        <span>{busy ? step || 'Включаю…' : 'Включить напоминания'}</span>
         <span className="grid place-items-center h-11 w-11 rounded-full bg-white/25">
           <BellRinging size={22} weight="light" />
         </span>
@@ -57,7 +59,7 @@ export default function EnableNotificationsScreen({ onDone }: { onDone: () => vo
         onClick={onDone}
         className="mt-6 text-sm text-muted underline underline-offset-4"
       >
-        Позже
+        Позже — включу в настройках
       </button>
     </div>
   )

@@ -71,9 +71,15 @@ export default function TodayScreen() {
 
   let cardIndex = 0
 
+  // Доске на широком экране даём всю ширину (видно несколько колонок),
+  // лента и шапка остаются узкой центральной колонкой
   return (
-    <div className="mx-auto max-w-md px-4 pt-safe">
-      <header className="pt-8 pb-5">
+    <div
+      className={`mx-auto px-4 pt-safe ${
+        view === 'board' ? 'max-w-[1440px]' : 'max-w-md'
+      }`}
+    >
+      <header className="pt-8 pb-5 mx-auto max-w-md">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Сегодня</h1>
           {/* Доска / Лента */}

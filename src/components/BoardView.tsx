@@ -2,9 +2,10 @@ import { useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
   pointerWithin,
   rectIntersection,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -47,11 +48,14 @@ export default function BoardView({
 }) {
   const [active, setActive] = useState<Question | null>(null)
 
-  // Задержка активации: короткий тап остаётся кликом (открыть карточку),
-  // удержание поднимает карточку в drag
+  // Раздельные сенсоры вместо PointerSensor: на iOS он дерётся со скроллом
+  // страницы (карточка дёргается). TouchSensor после активации блокирует
+  // скролл (preventDefault на touchmove) — перетаскивание плавное.
+  // Палец: удержание ~0.25 с; мышь: сдвиг на 6px (клик остаётся кликом).
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { delay: 200, tolerance: 8 },
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 10 },
     }),
   )
 
@@ -79,9 +83,12 @@ export default function BoardView({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActive(null)}
     >
+      {/* snap отключаем на время перетаскивания — иначе он дерётся
+          с автопрокруткой dnd-kit и доска дёргается */}
       <div
-        className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory
-          -mx-4 px-4 pb-2 items-start"
+        className={`flex gap-3 overflow-x-auto no-scrollbar
+          -mx-4 px-4 pb-2 items-start
+          ${active ? '' : 'snap-x snap-mandatory md:snap-none'}`}
       >
         {COLUMNS.map((status) => (
           <Column
@@ -119,7 +126,7 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`snap-center shrink-0 w-[76vw] max-w-[320px] rounded-[1.75rem]
+      className={`snap-center shrink-0 w-[76vw] max-w-[300px] rounded-[1.75rem]
         p-1.5 ring-1 transition-colors duration-300
         ${
           isOver
@@ -167,7 +174,14 @@ function BoardCard({ question }: { question: Question }) {
       {...attributes}
       {...listeners}
       onClick={() => navigate(`/question/${question.id}`)}
-      style={{ touchAction: 'manipulation' }}
+      style={{
+        touchAction: 'manipulation',
+        // без этого iOS на долгий тап показывает выделение/callout —
+        // и перетаскивание дёргается
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+      }}
       className={isDragging ? 'opacity-30' : ''}
     >
       <CardBody question={question} />

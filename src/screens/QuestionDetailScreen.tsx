@@ -11,6 +11,7 @@ import {
 import type { ActivityEvent, Question, Status } from '../lib/types'
 import { STATUS_LABEL } from '../lib/types'
 import {
+  ackQuestion,
   answerFollowup,
   closeQuestion,
   fetchChildren,
@@ -18,6 +19,7 @@ import {
   getQuestion,
   setRemindAt,
 } from '../lib/api'
+import DiscardSheet from '../components/DiscardSheet'
 import { fmtDateTime } from '../lib/reminders'
 import { PriorityBadge, StatusBadge } from '../components/StatusBadge'
 import CloseSheet from '../components/CloseSheet'
@@ -50,6 +52,7 @@ export default function QuestionDetailScreen() {
   const [log, setLog] = useState<ActivityEvent[]>([])
   const [children, setChildren] = useState<Question[]>([])
   const [closeOpen, setCloseOpen] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [childAddOpen, setChildAddOpen] = useState(false)
   const [remindPickerOpen, setRemindPickerOpen] = useState(false)
@@ -190,6 +193,16 @@ export default function QuestionDetailScreen() {
 
       {q.status !== 'closed' && (
         <>
+          {/* Долбёжка активна — можно погасить без смены статуса */}
+          {q.awaiting_ack && (
+            <button
+              onClick={async () => setQ(await ackQuestion(q))}
+              className="mb-3 w-full rounded-full bg-terra/15 text-terra
+                py-3.5 min-h-[52px] font-semibold"
+            >
+              ⏰ Помню, ещё в работе
+            </button>
+          )}
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => setStatusOpen(true)}
@@ -306,6 +319,17 @@ export default function QuestionDetailScreen() {
           fetchLog(q.id).then(setLog)
         }}
         onRequestClose={() => setCloseOpen(true)}
+        onRequestDiscard={() => setDiscardOpen(true)}
+      />
+
+      <DiscardSheet
+        question={q}
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onDone={() => {
+          setDiscardOpen(false)
+          navigate('/')
+        }}
       />
 
       <CloseSheet

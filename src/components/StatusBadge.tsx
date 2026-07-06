@@ -4,6 +4,7 @@ import { PRIORITY_LABEL, STATUS_LABEL } from '../lib/types'
 const statusStyles: Record<Status, string> = {
   new: 'bg-sakura/15 text-[#B5787D]',
   in_progress: 'bg-[#E8D9A0]/25 text-[#9A8A4A]',
+  review: 'bg-[#A0C3BE]/25 text-[#4F7E77]',
   waiting: 'bg-[#A0B8C3]/20 text-[#5F7E8C]',
   clarification: 'bg-[#C3A0B8]/20 text-[#8C5F7E]',
   dev: 'bg-[#A0A8C3]/20 text-[#5F668C]',

@@ -14,6 +14,10 @@ interface PushPayload {
   body: string
   tag?: string
   url?: string
+  // Кнопка «Помню, в работе» (показывается на Android/десктопе; iOS
+  // кнопки в веб-пушах не отображает — там кнопка в приложении)
+  actions?: { action: string; title: string }[]
+  ackUrl?: string
 }
 
 self.addEventListener('push', (e) => {
@@ -23,14 +27,25 @@ self.addEventListener('push', (e) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       tag: data.tag, // схлопывание дублей по question_id
-      data: { url: data.url ?? '/' },
-    }),
+      data: { url: data.url ?? '/', ackUrl: data.ackUrl },
+      ...(data.actions ? { actions: data.actions } : {}),
+    } as NotificationOptions),
   )
 })
 
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  const url = (e.notification.data?.url as string) ?? '/'
+  const { url = '/', ackUrl } = (e.notification.data ?? {}) as {
+    url?: string
+    ackUrl?: string
+  }
+
+  // Тап по кнопке «Помню» — гасим долбёжку, приложение не открываем
+  if (e.action === 'ack' && ackUrl) {
+    e.waitUntil(fetch(ackUrl, { method: 'POST' }).catch(() => {}))
+    return
+  }
+
   e.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({

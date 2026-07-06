@@ -91,6 +91,22 @@ export function setRemindAt(q: Question, at: Date): Promise<Question> {
   })
 }
 
+/** «Помню, в работе» — гасит 5-минутную долбёжку до следующего обычного шага. */
+export function ackQuestion(q: Question): Promise<Question> {
+  return apiFetch<Question>(`/questions/${q.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'ack' }),
+  })
+}
+
+/** «Не актуально» → в архив с выбранной пометкой. */
+export function discardQuestion(q: Question, reason: string): Promise<Question> {
+  return apiFetch<Question>(`/questions/${q.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'discard', reason }),
+  })
+}
+
 export function closeQuestion(q: Question, resolution: string): Promise<Question> {
   return apiFetch<Question>(`/questions/${q.id}`, {
     method: 'PATCH',

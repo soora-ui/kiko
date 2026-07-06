@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle } from '@phosphor-icons/react'
+import { Archive, CheckCircle } from '@phosphor-icons/react'
 import Sheet from './Sheet'
 import type { Question, Status } from '../lib/types'
 import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
@@ -16,6 +16,7 @@ export default function StatusSheet({
   onClose,
   onChanged,
   onRequestClose,
+  onRequestDiscard,
   intent,
 }: {
   question: Question | null
@@ -23,6 +24,7 @@ export default function StatusSheet({
   onClose: () => void
   onChanged: (updated: Question) => void
   onRequestClose: () => void
+  onRequestDiscard?: () => void
   /** Открыть сразу на вводе (после дропа в колонку waiting/clarification). */
   intent?: 'waiting' | 'clarification'
 }) {
@@ -115,6 +117,19 @@ export default function StatusSheet({
               {STATUS_LABEL.closed}
               <CheckCircle size={20} weight="light" />
             </button>
+            {onRequestDiscard && (
+              <button
+                onClick={() => {
+                  onClose()
+                  onRequestDiscard()
+                }}
+                className="rounded-full px-6 py-3 min-h-[48px] text-left font-semibold
+                  bg-black/[0.05] text-muted flex items-center justify-between"
+              >
+                Не актуально
+                <Archive size={20} weight="light" />
+              </button>
+            )}
           </div>
         </>
       )}

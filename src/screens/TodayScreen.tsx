@@ -4,6 +4,7 @@ import { Kanban, ListDashes } from '@phosphor-icons/react'
 import type { Question, Status } from '../lib/types'
 import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
 import {
+  ackQuestion,
   closeQuestion,
   fetchOpenQuestions,
   setStatus,
@@ -12,6 +13,7 @@ import {
 import QuestionCardItem from '../components/QuestionCardItem'
 import BoardView from '../components/BoardView'
 import CloseSheet from '../components/CloseSheet'
+import DiscardSheet from '../components/DiscardSheet'
 import SnoozeSheet from '../components/SnoozeSheet'
 import StatusSheet from '../components/StatusSheet'
 import EmptyState from '../components/EmptyState'
@@ -24,6 +26,7 @@ export default function TodayScreen() {
     () => (localStorage.getItem('kiko-view') as View) ?? 'board',
   )
   const [closing, setClosing] = useState<Question | null>(null)
+  const [discarding, setDiscarding] = useState<Question | null>(null)
   const [snoozing, setSnoozing] = useState<Question | null>(null)
   const [moving, setMoving] = useState<Question | null>(null)
   const [movingIntent, setMovingIntent] = useState<'waiting' | 'clarification' | undefined>()
@@ -71,12 +74,12 @@ export default function TodayScreen() {
 
   let cardIndex = 0
 
-  // Доске на широком экране даём всю ширину (видно несколько колонок),
+  // Доске даём всю ширину экрана (видно максимум колонок),
   // лента и шапка остаются узкой центральной колонкой
   return (
     <div
       className={`mx-auto px-4 pt-safe ${
-        view === 'board' ? 'max-w-[1440px]' : 'max-w-md'
+        view === 'board' ? 'max-w-none' : 'max-w-md'
       }`}
     >
       <header className="pt-8 pb-5 mx-auto max-w-md">
@@ -131,6 +134,19 @@ export default function TodayScreen() {
             setMoving(q)
           }}
           onDropClose={(q) => setClosing(q)}
+          onDropDiscard={(q) => setDiscarding(q)}
+          onAck={async (q) => {
+            setQuestions((prev) =>
+              prev
+                ? prev.map((x) => (x.id === q.id ? { ...x, awaiting_ack: false } : x))
+                : prev,
+            )
+            try {
+              await ackQuestion(q)
+            } finally {
+              load()
+            }
+          }}
         />
       ) : (
         sections.map(({ status, items }) => (
@@ -170,6 +186,16 @@ export default function TodayScreen() {
         }}
       />
 
+      <DiscardSheet
+        question={discarding}
+        open={discarding !== null}
+        onClose={() => setDiscarding(null)}
+        onDone={async () => {
+          setDiscarding(null)
+          await load()
+        }}
+      />
+
       <SnoozeSheet
         question={snoozing}
         open={snoozing !== null}
@@ -193,6 +219,10 @@ export default function TodayScreen() {
         }}
         onRequestClose={() => {
           setClosing(moving)
+          setMoving(null)
+        }}
+        onRequestDiscard={() => {
+          setDiscarding(moving)
           setMoving(null)
         }}
       />

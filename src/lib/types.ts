@@ -1,6 +1,7 @@
 export type Status =
   | 'new'
   | 'in_progress'
+  | 'review'
   | 'waiting'
   | 'clarification'
   | 'dev'
@@ -25,6 +26,7 @@ export interface Question {
   remind_interval_minutes: number
   snooze_count: number
   awaiting_ack: boolean
+  closed_reason: 'irrelevant' | null
   parent_id: string | null
   ai_suggestion: string | null
   ai_followup: string | null
@@ -58,6 +60,7 @@ export interface KnowledgeDoc {
 export const STATUS_LABEL: Record<Status, string> = {
   new: 'Новый',
   in_progress: 'В работе',
+  review: 'Проверить',
   waiting: 'Жду ответа',
   clarification: 'Требуется уточнение',
   dev: 'Передал программисту',
@@ -69,11 +72,20 @@ export const STATUS_LABEL: Record<Status, string> = {
 export const OPEN_STATUSES: Exclude<Status, 'closed'>[] = [
   'new',
   'in_progress',
+  'review',
   'clarification',
   'waiting',
   'dev',
   'postponed',
 ]
+
+/** Причины «Не актуально» — должны совпадать с сервером. */
+export const DISCARD_REASONS = [
+  'Потеряло актуальность',
+  'Пользователь сам разобрался',
+  'Нет ответа от пользователя',
+  'Невнимательность пользователя',
+] as const
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   urgent: 'Срочно',

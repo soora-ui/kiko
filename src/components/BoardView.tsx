@@ -15,13 +15,22 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { useNavigate } from 'react-router-dom'
+import { Archive } from '@phosphor-icons/react'
 import type { Question, Status } from '../lib/types'
 import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
 import { hangLabel } from '../lib/reminders'
 import { PriorityBadge } from './StatusBadge'
 import Enso from './Enso'
 
-const COLUMNS: Status[] = [...OPEN_STATUSES, 'closed']
+/** Колонки доски: статусы + две «сливные» — Выполнено и Не актуально. */
+type BoardColumn = Status | 'irrelevant'
+
+const COLUMNS: BoardColumn[] = [...OPEN_STATUSES, 'closed', 'irrelevant']
+
+const COLUMN_LABEL: Record<BoardColumn, string> = {
+  ...STATUS_LABEL,
+  irrelevant: 'Не актуально',
+}
 
 // Целевая колонка — та, что под пальцем (широкая карточка на узком экране
 // пересекает две колонки сразу, и по площади пересечения выигрывает исходная)
@@ -40,11 +49,15 @@ export default function BoardView({
   onDropStatus,
   onDropNeedsInput,
   onDropClose,
+  onDropDiscard,
+  onAck,
 }: {
   questions: Question[]
   onDropStatus: (q: Question, status: Status) => void
   onDropNeedsInput: (q: Question, intent: 'waiting' | 'clarification') => void
   onDropClose: (q: Question) => void
+  onDropDiscard: (q: Question) => void
+  onAck: (q: Question) => void
 }) {
   const [active, setActive] = useState<Question | null>(null)
 
@@ -66,9 +79,10 @@ export default function BoardView({
   const onDragEnd = (e: DragEndEvent) => {
     const q = active
     setActive(null)
-    const target = e.over?.id as Status | undefined
+    const target = e.over?.id as BoardColumn | undefined
     if (!q || !target || target === q.status) return
     if (target === 'closed') return onDropClose(q)
+    if (target === 'irrelevant') return onDropDiscard(q)
     if (target === 'waiting' || target === 'clarification') {
       return onDropNeedsInput(q, target)
     }
@@ -90,12 +104,13 @@ export default function BoardView({
           -mx-4 px-4 pb-2 items-start
           ${active ? '' : 'snap-x snap-mandatory md:snap-none'}`}
       >
-        {COLUMNS.map((status) => (
+        {COLUMNS.map((column) => (
           <Column
-            key={status}
-            status={status}
-            items={questions.filter((q) => q.status === status)}
+            key={column}
+            column={column}
+            items={questions.filter((q) => q.status === column)}
             dragging={active !== null}
+            onAck={onAck}
           />
         ))}
       </div>
@@ -112,16 +127,19 @@ export default function BoardView({
 }
 
 function Column({
-  status,
+  column,
   items,
   dragging,
+  onAck,
 }: {
-  status: Status
+  column: BoardColumn
   items: Question[]
   dragging: boolean
+  onAck: (q: Question) => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
-  const isClosed = status === 'closed'
+  const { setNodeRef, isOver } = useDroppable({ id: column })
+  // «Сливные» колонки — только цели для дропа, карточки в них не живут
+  const isSink = column === 'closed' || column === 'irrelevant'
 
   return (
     <div
@@ -138,14 +156,15 @@ function Column({
     >
       <div className="flex items-baseline gap-2 px-4 pt-2.5 pb-2">
         <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
-          {STATUS_LABEL[status]}
+          {COLUMN_LABEL[column]}
         </h2>
-        {!isClosed && <span className="text-xs font-bold text-sakura">{items.length}</span>}
+        {!isSink && <span className="text-xs font-bold text-sakura">{items.length}</span>}
       </div>
 
       <div className="flex flex-col gap-1.5 min-h-[96px] pb-0.5">
-        {!isClosed && items.map((q) => <BoardCard key={q.id} question={q} />)}
-        {isClosed && (
+        {!isSink &&
+          items.map((q) => <BoardCard key={q.id} question={q} onAck={onAck} />)}
+        {column === 'closed' && (
           <div className="flex flex-col items-center py-5 text-center px-4">
             <Enso size={56} className="text-sage" />
             <p className="mt-1 text-xs text-muted">
@@ -153,7 +172,15 @@ function Column({
             </p>
           </div>
         )}
-        {!isClosed && items.length === 0 && (
+        {column === 'irrelevant' && (
+          <div className="flex flex-col items-center py-5 text-center px-4">
+            <Archive size={40} weight="light" className="text-muted/60 my-2" />
+            <p className="mt-1 text-xs text-muted">
+              Перетащи сюда — в архив с пометкой причины
+            </p>
+          </div>
+        )}
+        {!isSink && items.length === 0 && (
           <p className="px-4 py-4 text-xs text-muted text-center">Пусто</p>
         )}
       </div>
@@ -161,7 +188,13 @@ function Column({
   )
 }
 
-function BoardCard({ question }: { question: Question }) {
+function BoardCard({
+  question,
+  onAck,
+}: {
+  question: Question
+  onAck: (q: Question) => void
+}) {
   const navigate = useNavigate()
   const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
     id: question.id,
@@ -184,12 +217,20 @@ function BoardCard({ question }: { question: Question }) {
       }}
       className={isDragging ? 'opacity-30' : ''}
     >
-      <CardBody question={question} />
+      <CardBody question={question} onAck={onAck} />
     </div>
   )
 }
 
-function CardBody({ question, lifted = false }: { question: Question; lifted?: boolean }) {
+function CardBody({
+  question,
+  lifted = false,
+  onAck,
+}: {
+  question: Question
+  lifted?: boolean
+  onAck?: (q: Question) => void
+}) {
   return (
     <div
       className={`bg-white rounded-[calc(1.75rem-0.375rem)] p-3.5 cursor-grab
@@ -197,6 +238,19 @@ function CardBody({ question, lifted = false }: { question: Question; lifted?: b
     >
       <div className="flex items-center gap-2">
         <PriorityBadge priority={question.priority} />
+        {/* Долбёжка активна — кнопка гасит её без смены статуса */}
+        {question.awaiting_ack && onAck && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onAck(question)
+            }}
+            className="rounded-full bg-terra/15 text-terra px-2.5 py-0.5
+              text-[11px] font-semibold min-h-[24px]"
+          >
+            ⏰ Помню
+          </button>
+        )}
         <span className="ml-auto text-[11px] text-muted">
           {hangLabel(question.created_at)}
         </span>

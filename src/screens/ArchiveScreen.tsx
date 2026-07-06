@@ -63,10 +63,22 @@ export default function ArchiveScreen() {
               >
                 <div className="bezel-core p-4">
                   <p className="font-medium leading-snug line-clamp-2">{q.summary}</p>
-                  {q.resolution && (
-                    <p className="mt-1.5 text-sm text-[#6E8A66] line-clamp-2">
-                      → {q.resolution}
+                  {q.closed_reason === 'irrelevant' ? (
+                    <p className="mt-1.5 text-sm text-muted line-clamp-2">
+                      <span
+                        className="inline-block rounded-full bg-black/[0.05] px-2 py-0.5
+                          text-[11px] font-semibold mr-1.5 align-middle"
+                      >
+                        Не актуально
+                      </span>
+                      {q.resolution}
                     </p>
+                  ) : (
+                    q.resolution && (
+                      <p className="mt-1.5 text-sm text-[#6E8A66] line-clamp-2">
+                        → {q.resolution}
+                      </p>
+                    )
                   )}
                   {q.author && (
                     <p className="mt-1 text-xs text-muted">{q.author}</p>

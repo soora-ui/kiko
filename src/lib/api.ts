@@ -1,6 +1,7 @@
 import { apiFetch } from './http'
 import type {
   ActivityEvent,
+  Category,
   KnowledgeDoc,
   Priority,
   Question,
@@ -54,6 +55,8 @@ export function createQuestion(input: {
   raw_text: string
   author: string | null
   priority: Priority
+  category: Category
+  dp_number?: string | null
   parent_id?: string | null
   force?: boolean
 }): Promise<Question> {
@@ -63,6 +66,22 @@ export function createQuestion(input: {
       ...input,
       remind_at: initialRemindAt(input.priority, loadSettings()).toISOString(),
     }),
+  })
+}
+
+/** Редактирование самой карточки — текст, автор, категория, номер ДП. */
+export function editQuestion(
+  q: Question,
+  input: {
+    raw_text: string
+    author?: string | null
+    category?: Category
+    dp_number?: string | null
+  },
+): Promise<Question> {
+  return apiFetch<Question>(`/questions/${q.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'edit', ...input }),
   })
 }
 

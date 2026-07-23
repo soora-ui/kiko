@@ -19,7 +19,7 @@ import { Archive } from '@phosphor-icons/react'
 import type { Question, Status } from '../lib/types'
 import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
 import { hangLabel } from '../lib/reminders'
-import { PriorityBadge } from './StatusBadge'
+import { CategoryBadge, LinkedBadge, PriorityBadge } from './StatusBadge'
 import Enso from './Enso'
 
 /** Колонки доски: статусы + две «сливные» — Выполнено и Не актуально. */
@@ -236,8 +236,10 @@ function CardBody({
       className={`bg-white rounded-[calc(1.75rem-0.375rem)] p-3.5 cursor-grab
         ${lifted ? 'shadow-[0_16px_40px_rgba(58,55,51,0.18)]' : 'shadow-soft'}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <PriorityBadge priority={question.priority} />
+        <CategoryBadge category={question.category} />
+        {question.parent_id && <LinkedBadge />}
         {/* Долбёжка активна — кнопка гасит её без смены статуса */}
         {question.awaiting_ack && onAck && (
           <button
@@ -260,6 +262,7 @@ function CardBody({
       </p>
       <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted">
         {question.author && <span className="line-clamp-1">{question.author}</span>}
+        {question.dp_number && <span>ДП №{question.dp_number}</span>}
         {question.status === 'waiting' && question.waiting_for && (
           <span>жду: {question.waiting_for}</span>
         )}

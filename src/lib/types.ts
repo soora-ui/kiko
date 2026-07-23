@@ -10,6 +10,8 @@ export type Status =
 
 export type Priority = 'urgent' | 'normal' | 'low'
 
+export type Category = 'task' | 'question' | 'improvement'
+
 export interface Question {
   id: string
   created_at: string
@@ -20,6 +22,7 @@ export interface Question {
   summary: string | null
   status: Status
   priority: Priority
+  category: Category
   waiting_for: string | null
   clarification: string | null
   remind_at: string | null
@@ -28,6 +31,7 @@ export interface Question {
   awaiting_ack: boolean
   closed_reason: 'irrelevant' | null
   parent_id: string | null
+  dp_number: string | null
   ai_suggestion: string | null
   ai_followup: string | null
   resolution: string | null
@@ -40,6 +44,7 @@ export type ActivityEventType =
   | 'closed'
   | 'note_added'
   | 'reminded'
+  | 'edited'
 
 export interface ActivityEvent {
   id: string
@@ -91,4 +96,10 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
   urgent: 'Срочно',
   normal: 'Обычно',
   low: 'Потом',
+}
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  task: 'Задача',
+  question: 'Вопрос',
+  improvement: 'Доработка',
 }

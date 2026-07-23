@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   BellRinging,
   Lightbulb,
+  PencilSimple,
   Plus,
   Sparkle,
 } from '@phosphor-icons/react'
@@ -21,10 +22,11 @@ import {
 } from '../lib/api'
 import DiscardSheet from '../components/DiscardSheet'
 import { fmtDateTime } from '../lib/reminders'
-import { PriorityBadge, StatusBadge } from '../components/StatusBadge'
+import { CategoryBadge, PriorityBadge, StatusBadge } from '../components/StatusBadge'
 import CloseSheet from '../components/CloseSheet'
 import StatusSheet from '../components/StatusSheet'
 import QuickAddModal from '../components/QuickAddModal'
+import EditQuestionSheet from '../components/EditQuestionSheet'
 
 const eventLabel = (e: ActivityEvent): string => {
   switch (e.event) {
@@ -40,6 +42,8 @@ const eventLabel = (e: ActivityEvent): string => {
       return 'Закрыт'
     case 'reminded':
       return 'Отправлено напоминание'
+    case 'edited':
+      return 'Вопрос отредактирован'
     default:
       return 'Заметка'
   }
@@ -55,6 +59,8 @@ export default function QuestionDetailScreen() {
   const [discardOpen, setDiscardOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [childAddOpen, setChildAddOpen] = useState(false)
+  const [dpAddOpen, setDpAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const [remindPickerOpen, setRemindPickerOpen] = useState(false)
   const [remindValue, setRemindValue] = useState('')
   const [followupAnswer, setFollowupAnswer] = useState('')
@@ -94,7 +100,7 @@ export default function QuestionDetailScreen() {
         >
           <ArrowLeft size={20} weight="light" />
         </button>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           {q.status !== 'closed' ? (
             <button onClick={() => setStatusOpen(true)} className="min-h-[32px]">
               <StatusBadge status={q.status} />
@@ -103,7 +109,15 @@ export default function QuestionDetailScreen() {
             <StatusBadge status={q.status} />
           )}
           <PriorityBadge priority={q.priority} />
+          <CategoryBadge category={q.category} />
         </div>
+        <button
+          onClick={() => setEditOpen(true)}
+          aria-label="Редактировать"
+          className="ml-auto grid place-items-center h-11 w-11 rounded-full bg-black/[0.03]"
+        >
+          <PencilSimple size={19} weight="light" />
+        </button>
       </header>
 
       {q.parent_id && (
@@ -121,6 +135,7 @@ export default function QuestionDetailScreen() {
           <p className="leading-relaxed whitespace-pre-wrap">{q.raw_text}</p>
           <div className="mt-3 text-sm text-muted space-y-0.5">
             {q.author && <p>Спросил(а): {q.author}</p>}
+            {q.dp_number && <p>ДП №{q.dp_number}</p>}
             <p>Создан: {fmtDateTime(q.created_at)}</p>
             {q.remind_at && q.status !== 'closed' && (
               <p>Напомню: {fmtDateTime(q.remind_at)}</p>
@@ -267,13 +282,22 @@ export default function QuestionDetailScreen() {
           <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
             Связанные задачи
           </h2>
-          <button
-            onClick={() => setChildAddOpen(true)}
-            className="flex items-center gap-1 text-xs font-semibold text-sakura min-h-[32px]"
-          >
-            <Plus size={14} weight="bold" />
-            Создать
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDpAddOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-sakura min-h-[32px]"
+            >
+              <Plus size={14} weight="bold" />
+              Создать ДП
+            </button>
+            <button
+              onClick={() => setChildAddOpen(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-muted min-h-[32px]"
+            >
+              <Plus size={14} weight="bold" />
+              Создать
+            </button>
+          </div>
         </div>
         {children.length === 0 ? (
           <p className="px-2 text-sm text-muted">Пока нет</p>
@@ -281,9 +305,13 @@ export default function QuestionDetailScreen() {
           <div className="space-y-2">
             {children.map((c) => (
               <Link key={c.id} to={`/question/${c.id}`} className="block bezel">
-                <div className="bezel-core p-3.5 flex items-center gap-2">
+                <div className="bezel-core p-3.5 flex items-center gap-2 flex-wrap">
                   <StatusBadge status={c.status} />
-                  <span className="text-sm line-clamp-1">{c.summary}</span>
+                  <CategoryBadge category={c.category} />
+                  {c.dp_number && (
+                    <span className="text-xs text-muted">ДП №{c.dp_number}</span>
+                  )}
+                  <span className="w-full text-sm line-clamp-1">{c.summary}</span>
                 </div>
               </Link>
             ))}
@@ -351,6 +379,24 @@ export default function QuestionDetailScreen() {
           setChildAddOpen(false)
           load()
         }}
+      />
+
+      <QuickAddModal
+        open={dpAddOpen}
+        parentId={q.id}
+        requireDp
+        onClose={() => setDpAddOpen(false)}
+        onSaved={() => {
+          setDpAddOpen(false)
+          load()
+        }}
+      />
+
+      <EditQuestionSheet
+        question={q}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={(updated) => setQ(updated)}
       />
     </div>
   )

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { PaperPlaneTilt, Warning } from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
-import type { Priority, Question } from '../lib/types'
-import { STATUS_LABEL } from '../lib/types'
+import type { Category, Priority, Question } from '../lib/types'
+import { CATEGORY_LABEL, STATUS_LABEL } from '../lib/types'
 import { createQuestion } from '../lib/api'
 import { ApiError } from '../lib/http'
 
@@ -12,6 +12,19 @@ const priorities: { value: Priority; label: string }[] = [
   { value: 'normal', label: '◯ Обычно' },
   { value: 'low', label: '・Потом' },
 ]
+
+const categories: { value: Category; label: string }[] = [
+  { value: 'question', label: CATEGORY_LABEL.question },
+  { value: 'task', label: CATEGORY_LABEL.task },
+  { value: 'improvement', label: CATEGORY_LABEL.improvement },
+]
+
+/** Растягивает textarea под содержимое до maxHeight, дальше — скролл внутри. */
+function autosize(el: HTMLTextAreaElement | null, maxHeight = 320) {
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
+}
 
 /** Автор — эвристикой: всё до первого тире/запятой. */
 function guessAuthor(text: string): string {
@@ -26,20 +39,26 @@ export default function QuickAddModal({
   onClose,
   onSaved,
   parentId = null,
+  requireDp = false,
 }: {
   open: boolean
   onClose: () => void
   onSaved: () => void
   parentId?: string | null
+  /** Создание связанного ДП — номер документа обязателен и вынесен основным полем. */
+  requireDp?: boolean
 }) {
   const [text, setText] = useState('')
   const [priority, setPriority] = useState<Priority>('normal')
+  const [category, setCategory] = useState<Category>('question')
+  const [dpNumber, setDpNumber] = useState('')
   const [author, setAuthor] = useState('')
   const [authorTouched, setAuthorTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [duplicates, setDuplicates] = useState<Duplicate[]>([])
   const ref = useRef<HTMLTextAreaElement>(null)
+  const dpRef = useRef<HTMLInputElement>(null)
 
   const suggested = useMemo(() => guessAuthor(text), [text])
   const effectiveAuthor = authorTouched ? author : suggested
@@ -48,17 +67,21 @@ export default function QuickAddModal({
     if (open) {
       setText('')
       setPriority('normal')
+      setCategory('question')
+      setDpNumber('')
       setAuthor('')
       setAuthorTouched(false)
       setError('')
       setDuplicates([])
-      // автофокус после анимации открытия
-      setTimeout(() => ref.current?.focus(), 80)
+      // автофокус после анимации открытия — на номер ДП, если это его создание
+      setTimeout(() => (requireDp ? dpRef.current : ref.current)?.focus(), 80)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const save = async (force = false) => {
     if (!text.trim() || busy) return
+    if (requireDp && !dpNumber.trim()) return
     setBusy(true)
     setError('')
     try {
@@ -66,6 +89,8 @@ export default function QuickAddModal({
         raw_text: text.trim(),
         author: effectiveAuthor.trim() || null,
         priority,
+        category,
+        dp_number: dpNumber.trim() || null,
         parent_id: parentId,
         force,
       })
@@ -104,15 +129,30 @@ export default function QuickAddModal({
               <div className="bezel-core p-4">
                 {parentId && (
                   <p className="mb-2 px-1 text-xs font-semibold text-muted uppercase tracking-wide">
-                    Связанная задача
+                    {requireDp ? 'Связанный документ поддержки (ДП)' : 'Связанная задача'}
                   </p>
                 )}
+
+                {requireDp && (
+                  <input
+                    ref={dpRef}
+                    value={dpNumber}
+                    onChange={(e) => setDpNumber(e.target.value)}
+                    placeholder="Номер ДП"
+                    inputMode="numeric"
+                    className="mb-3 w-full rounded-2xl bg-sakura/10 px-4 py-3.5
+                      text-[16px] font-semibold outline-none
+                      focus:ring-2 focus:ring-sakura/50 placeholder:font-normal placeholder:text-muted"
+                  />
+                )}
+
                 <textarea
                   ref={ref}
                   value={text}
                   onChange={(e) => {
                     setText(e.target.value)
                     setDuplicates([])
+                    autosize(e.target)
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save()
@@ -120,7 +160,7 @@ export default function QuickAddModal({
                   placeholder="Иванова из бухгалтерии — не работает выгрузка в 1С"
                   rows={4}
                   className="w-full rounded-2xl bg-black/[0.03] p-4 outline-none
-                    focus:ring-2 focus:ring-sakura/50 resize-none text-[16px]"
+                    focus:ring-2 focus:ring-sakura/50 resize-none text-[16px] overflow-y-auto"
                 />
 
                 <div className="mt-3 flex gap-2">
@@ -139,6 +179,24 @@ export default function QuickAddModal({
                         }`}
                     >
                       {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 flex gap-2">
+                  {categories.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => setCategory(c.value)}
+                      className={`flex-1 rounded-full px-3 py-2.5 text-sm font-medium
+                        transition-colors duration-500 ease-koneko min-h-[44px]
+                        ${
+                          category === c.value
+                            ? 'bg-sakura/15 text-ink ring-1 ring-sakura/40'
+                            : 'bg-black/[0.03] text-muted'
+                        }`}
+                    >
+                      {c.label}
                     </button>
                   ))}
                 </div>
@@ -190,7 +248,7 @@ export default function QuickAddModal({
                 {duplicates.length === 0 && (
                   <button
                     onClick={() => save()}
-                    disabled={!text.trim() || busy}
+                    disabled={!text.trim() || (requireDp && !dpNumber.trim()) || busy}
                     className="mt-4 w-full pill-primary disabled:opacity-40
                       flex items-center justify-between pl-6 pr-2 py-2 min-h-[52px]"
                   >

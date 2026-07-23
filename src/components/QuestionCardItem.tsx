@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle, ClockCounterClockwise } from '@phosphor-icons/react'
 import type { Question } from '../lib/types'
 import { hangLabel } from '../lib/reminders'
-import { PriorityBadge, StatusBadge } from './StatusBadge'
+import { CategoryBadge, LinkedBadge, PriorityBadge, StatusBadge } from './StatusBadge'
 
 const SWIPE_THRESHOLD = 96
 
@@ -78,6 +78,8 @@ export default function QuestionCardItem({
               <StatusBadge status={question.status} />
             </button>
             <PriorityBadge priority={question.priority} />
+            <CategoryBadge category={question.category} />
+            {question.parent_id && <LinkedBadge />}
             <span className="ml-auto text-[11px] text-muted">
               {hangLabel(question.created_at)}
             </span>
@@ -87,6 +89,7 @@ export default function QuestionCardItem({
           </p>
           <div className="mt-2 flex items-center gap-3 text-xs text-muted">
             {question.author && <span>{question.author}</span>}
+            {question.dp_number && <span>ДП №{question.dp_number}</span>}
             {question.status === 'waiting' && question.waiting_for && (
               <span>жду: {question.waiting_for}</span>
             )}

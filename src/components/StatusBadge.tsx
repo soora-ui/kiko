@@ -1,5 +1,6 @@
-import type { Priority, Status } from '../lib/types'
-import { PRIORITY_LABEL, STATUS_LABEL } from '../lib/types'
+import { LinkSimple } from '@phosphor-icons/react'
+import type { Category, Priority, Status } from '../lib/types'
+import { CATEGORY_LABEL, PRIORITY_LABEL, STATUS_LABEL } from '../lib/types'
 
 const statusStyles: Record<Status, string> = {
   new: 'bg-sakura/15 text-[#B5787D]',
@@ -19,6 +20,37 @@ export function StatusBadge({ status }: { status: Status }) {
         text-[11px] font-semibold ${statusStyles[status]}`}
     >
       {STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+const categoryStyles: Record<Category, string> = {
+  task: 'bg-[#A0B8C3]/20 text-[#5F7E8C]',
+  question: 'bg-black/[0.05] text-muted',
+  improvement: 'bg-[#C3A0B8]/20 text-[#8C5F7E]',
+}
+
+export function CategoryBadge({ category }: { category: Category }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5
+        text-[11px] font-semibold ${categoryStyles[category]}`}
+    >
+      {CATEGORY_LABEL[category]}
+    </span>
+  )
+}
+
+/** Обозначает карточку, созданную от родительского вопроса — иначе связь не видна без открытия карточки. */
+export function LinkedBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-black/[0.05]
+        text-muted px-2.5 py-0.5 text-[11px] font-semibold"
+      title="Создано от другого вопроса"
+    >
+      <LinkSimple size={11} weight="bold" />
+      Связан
     </span>
   )
 }

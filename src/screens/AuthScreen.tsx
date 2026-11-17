@@ -3,16 +3,17 @@ import { login } from '../lib/http'
 import Enso from '../components/Enso'
 
 export default function AuthScreen({ onLogin }: { onLogin: () => void }) {
+  const [loginName, setLoginName] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   const submit = async () => {
-    if (!password || busy) return
+    if (!loginName.trim() || !password || busy) return
     setBusy(true)
     setError('')
     try {
-      await login(password)
+      await login(loginName, password)
       onLogin()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось войти')
@@ -29,6 +30,19 @@ export default function AuthScreen({ onLogin }: { onLogin: () => void }) {
 
       <div className="w-full max-w-sm">
         <input
+          type="text"
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={loginName}
+          onChange={(e) => setLoginName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="Логин"
+          className="mb-2 w-full rounded-full bg-white ring-1 ring-black/5 px-6 py-4
+            outline-none focus:ring-2 focus:ring-sakura/50 shadow-soft text-[16px]"
+        />
+        <input
           type="password"
           autoComplete="current-password"
           value={password}
@@ -41,7 +55,7 @@ export default function AuthScreen({ onLogin }: { onLogin: () => void }) {
         {error && <p className="mt-2 text-sm text-terra px-2">{error}</p>}
         <button
           onClick={submit}
-          disabled={!password || busy}
+          disabled={!loginName.trim() || !password || busy}
           className="mt-3 w-full pill-primary py-4 min-h-[52px] disabled:opacity-40"
         >
           {busy ? 'Вхожу…' : 'Войти'}

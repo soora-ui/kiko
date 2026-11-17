@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SignOut, Trash } from '@phosphor-icons/react'
-import { clearToken } from '../lib/http'
+import { clearToken, getMe } from '../lib/http'
+import { AccountSection, UsersSection } from '../components/AccountSection'
 import {
   fetchSettings,
   loadSettings,
@@ -266,6 +267,16 @@ export default function SettingsScreen({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </Section>
+
+      <Section title="Аккаунт">
+        <AccountSection />
+      </Section>
+
+      {getMe()?.is_admin && (
+        <Section title="Пользователи">
+          <UsersSection />
+        </Section>
+      )}
 
       <Section title="Данные">
         <button

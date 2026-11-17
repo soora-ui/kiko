@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   BellRinging,
+  Eye,
   Lightbulb,
   PencilSimple,
   Plus,
@@ -27,6 +28,7 @@ import CloseSheet from '../components/CloseSheet'
 import StatusSheet from '../components/StatusSheet'
 import QuickAddModal from '../components/QuickAddModal'
 import EditQuestionSheet from '../components/EditQuestionSheet'
+import { getMe } from '../lib/http'
 
 const eventLabel = (e: ActivityEvent): string => {
   switch (e.event) {
@@ -90,6 +92,9 @@ export default function QuestionDetailScreen() {
     )
   }
 
+  // Чужой вопрос — только просмотр: без правки, статусов и напоминаний
+  const readonly = q.owner_id !== getMe()?.id
+
   return (
     <div className="mx-auto max-w-md px-4 pt-safe pb-8">
       <header className="pt-6 pb-4 flex items-center gap-3">
@@ -101,7 +106,7 @@ export default function QuestionDetailScreen() {
           <ArrowLeft size={20} weight="light" />
         </button>
         <div className="flex gap-2 items-center flex-wrap">
-          {q.status !== 'closed' ? (
+          {!readonly && q.status !== 'closed' ? (
             <button onClick={() => setStatusOpen(true)} className="min-h-[32px]">
               <StatusBadge status={q.status} />
             </button>
@@ -111,14 +116,28 @@ export default function QuestionDetailScreen() {
           <PriorityBadge priority={q.priority} />
           <CategoryBadge category={q.category} />
         </div>
-        <button
-          onClick={() => setEditOpen(true)}
-          aria-label="Редактировать"
-          className="ml-auto grid place-items-center h-11 w-11 rounded-full bg-black/[0.03]"
-        >
-          <PencilSimple size={19} weight="light" />
-        </button>
+        {!readonly && (
+          <button
+            onClick={() => setEditOpen(true)}
+            aria-label="Редактировать"
+            className="ml-auto grid place-items-center h-11 w-11 rounded-full bg-black/[0.03]"
+          >
+            <PencilSimple size={19} weight="light" />
+          </button>
+        )}
       </header>
+
+      {readonly && (
+        <Link
+          to={q.owner_id ? `/people/${q.owner_id}` : '/people'}
+          className="mb-3 flex items-center gap-2 rounded-full bg-black/[0.03] px-4 py-2.5 text-sm text-muted"
+        >
+          <Eye size={16} weight="light" className="shrink-0" />
+          <span>
+            Задача коллеги{q.owner_name ? `: ${q.owner_name}` : ''} — только просмотр
+          </span>
+        </Link>
+      )}
 
       {q.parent_id && (
         <Link
@@ -170,7 +189,7 @@ export default function QuestionDetailScreen() {
       )}
 
       {/* Уточняющий вопрос ИИ после закрытия — пополняет базу опыта */}
-      {q.ai_followup && (
+      {!readonly && q.ai_followup && (
         <div className="bezel mb-4">
           <div className="bezel-core p-5">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide mb-2">
@@ -206,7 +225,7 @@ export default function QuestionDetailScreen() {
         </div>
       )}
 
-      {q.status !== 'closed' && (
+      {!readonly && q.status !== 'closed' && (
         <>
           {/* Долбёжка активна — можно погасить без смены статуса */}
           {q.awaiting_ack && (
@@ -282,7 +301,7 @@ export default function QuestionDetailScreen() {
           <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
             Связанные задачи
           </h2>
-          <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-3 ${readonly ? 'hidden' : ''}`}>
             <button
               onClick={() => setDpAddOpen(true)}
               className="flex items-center gap-1 text-xs font-semibold text-sakura min-h-[32px]"

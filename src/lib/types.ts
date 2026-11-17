@@ -14,6 +14,8 @@ export type Category = 'task' | 'question' | 'improvement'
 
 export interface Question {
   id: string
+  owner_id: string | null
+  owner_name?: string | null
   created_at: string
   updated_at: string
   closed_at: string | null
@@ -45,6 +47,15 @@ export type ActivityEventType =
   | 'note_added'
   | 'reminded'
   | 'edited'
+
+export interface Colleague {
+  id: string
+  login: string
+  name: string
+  is_admin: boolean
+  open_count: number
+  in_progress_count: number
+}
 
 export interface ActivityEvent {
   id: string

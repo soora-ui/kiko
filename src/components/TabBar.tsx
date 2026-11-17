@@ -4,11 +4,13 @@ import {
   ChartBar,
   GearSix,
   Sun,
+  UsersThree,
 } from '@phosphor-icons/react'
 
 const tabs = [
   { to: '/', label: 'Сегодня', icon: Sun },
   { to: '/archive', label: 'Архив', icon: Archive },
+  { to: '/people', label: 'Коллеги', icon: UsersThree },
   { to: '/report', label: 'Отчёт', icon: ChartBar },
   { to: '/settings', label: 'Настройки', icon: GearSix },
 ]
@@ -28,7 +30,7 @@ export default function TabBar() {
           end={to === '/'}
           className={({ isActive }) =>
             `flex flex-col items-center justify-center gap-0.5 rounded-full
-             min-w-[64px] min-h-[48px] px-3 py-1.5
+             min-w-[56px] min-h-[48px] px-2 py-1.5
              transition-colors duration-500 ease-koneko
              ${isActive ? 'bg-sakura/15 text-ink' : 'text-muted'}`
           }

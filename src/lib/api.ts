@@ -2,6 +2,7 @@ import { apiFetch } from './http'
 import type {
   ActivityEvent,
   Category,
+  Colleague,
   KnowledgeDoc,
   Priority,
   Question,
@@ -10,8 +11,10 @@ import type {
 import { initialRemindAt } from './reminders'
 import { loadSettings } from './settings'
 
-export async function fetchOpenQuestions(): Promise<Question[]> {
-  const data = await apiFetch<Question[]>('/questions')
+/** Открытые вопросы — свои, либо коллеги (userId) только для просмотра. */
+export async function fetchOpenQuestions(userId?: string): Promise<Question[]> {
+  const qs = userId ? `?${new URLSearchParams({ user: userId })}` : ''
+  const data = await apiFetch<Question[]>(`/questions${qs}`)
   return sortFeed(data)
 }
 
@@ -32,9 +35,10 @@ function sortFeed(items: Question[]): Question[] {
   })
 }
 
-export function fetchClosedQuestions(search?: string): Promise<Question[]> {
+export function fetchClosedQuestions(search?: string, userId?: string): Promise<Question[]> {
   const qs = new URLSearchParams({ scope: 'closed' })
   if (search?.trim()) qs.set('search', search.trim())
+  if (userId) qs.set('user', userId)
   return apiFetch<Question[]>(`/questions?${qs}`)
 }
 
@@ -177,5 +181,42 @@ export async function exportAllData(): Promise<Blob> {
   const payload = await apiFetch<unknown>('/export')
   return new Blob([JSON.stringify(payload, null, 2)], {
     type: 'application/json',
+  })
+}
+
+// ── Пользователи ─────────────────────────────────────────────────
+
+export function fetchColleagues(): Promise<Colleague[]> {
+  return apiFetch<Colleague[]>('/users')
+}
+
+export function getUser(id: string): Promise<{ id: string; name: string; login: string }> {
+  return apiFetch(`/users/${id}`)
+}
+
+export function createUser(input: {
+  login: string
+  name: string
+  password: string
+  is_admin?: boolean
+}): Promise<Colleague> {
+  return apiFetch('/users', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function updateUser(
+  id: string,
+  input: { name?: string; password?: string },
+): Promise<Colleague> {
+  return apiFetch(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
+}
+
+export function deleteUser(id: string): Promise<void> {
+  return apiFetch(`/users/${id}`, { method: 'DELETE' })
+}
+
+export function changeMyPassword(current: string, next: string): Promise<void> {
+  return apiFetch('/me/password', {
+    method: 'PUT',
+    body: JSON.stringify({ current, next }),
   })
 }

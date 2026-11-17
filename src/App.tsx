@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { getToken, UNAUTHORIZED_EVENT } from './lib/http'
+import { getMe, getToken, refreshMe, UNAUTHORIZED_EVENT } from './lib/http'
 import { fetchSettings } from './lib/settings'
 import { isIos, isStandalone, syncSubscription } from './lib/push'
 import TabBar from './components/TabBar'
@@ -11,11 +11,14 @@ import ReportScreen from './screens/ReportScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import QuestionDetailScreen from './screens/QuestionDetailScreen'
 import AuthScreen from './screens/AuthScreen'
+import PeopleScreen from './screens/PeopleScreen'
+import PersonScreen from './screens/PersonScreen'
 import InstallScreen from './screens/InstallScreen'
 import EnableNotificationsScreen from './screens/EnableNotificationsScreen'
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => Boolean(getToken()))
+  // без «кто я» (старый токен однопользовательской версии) — на вход заново
+  const [authed, setAuthed] = useState(() => Boolean(getToken() && getMe()))
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [feedVersion, setFeedVersion] = useState(0)
   const [installDismissed, setInstallDismissed] = useState(
@@ -40,6 +43,7 @@ export default function App() {
   // если она есть локально, но не доехала до сервера
   useEffect(() => {
     if (!authed) return
+    refreshMe().catch(() => {})
     fetchSettings().catch(() => {})
     syncSubscription().catch(() => {})
   }, [authed])
@@ -77,6 +81,8 @@ export default function App() {
         <Route path="/report" element={<ReportScreen />} />
         <Route path="/settings" element={<SettingsScreen onLogout={() => setAuthed(false)} />} />
         <Route path="/question/:id" element={<QuestionDetailScreen />} />
+        <Route path="/people" element={<PeopleScreen />} />
+        <Route path="/people/:id" element={<PersonScreen />} />
       </Routes>
 
       <TabBar />

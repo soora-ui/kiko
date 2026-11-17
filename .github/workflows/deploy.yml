@@ -2,7 +2,6 @@
 # Перед первым запуском:
 #   1. Settings → Pages → Source: GitHub Actions
 #   2. Settings → Secrets and variables → Actions → Variables — добавь:
-#      VITE_API_URL           https://твой-домен-api
 #      VITE_VAPID_PUBLIC_KEY  публичный VAPID-ключ
 name: Deploy to GitHub Pages
 
@@ -33,7 +32,7 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_API_URL: https://89.111.136.188.sslip.io
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:

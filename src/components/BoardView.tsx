@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -15,7 +15,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { useNavigate } from 'react-router-dom'
-import { Archive } from '@phosphor-icons/react'
+import { Archive, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import type { Question, Status } from '../lib/types'
 import { OPEN_STATUSES, STATUS_LABEL } from '../lib/types'
 import { hangLabel } from '../lib/reminders'
@@ -60,6 +60,15 @@ export default function BoardView({
   onAck: (q: Question) => void
 }) {
   const [active, setActive] = useState<Question | null>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+
+  const scrollBoard = (direction: -1 | 1) => {
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    // Шаг примерно в одну колонку, но не больше видимой ширины.
+    const distance = Math.min(320, scroller.clientWidth * 0.8)
+    scroller.scrollBy({ left: direction * distance, behavior: 'smooth' })
+  }
 
   // Раздельные сенсоры вместо PointerSensor: на iOS он дерётся со скроллом
   // страницы (карточка дёргается). TouchSensor после активации блокирует
@@ -97,12 +106,35 @@ export default function BoardView({
       onDragEnd={onDragEnd}
       onDragCancel={() => setActive(null)}
     >
+      <div className="mb-2 hidden items-center justify-end gap-2 md:flex">
+        <button
+          type="button"
+          onClick={() => scrollBoard(-1)}
+          aria-label="Предыдущие столбцы"
+          className="grid h-10 w-10 place-items-center rounded-full bg-white
+            text-muted shadow-soft ring-1 ring-black/5 active:scale-95"
+        >
+          <CaretLeft size={18} weight="bold" />
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollBoard(1)}
+          aria-label="Следующие столбцы"
+          className="grid h-10 w-10 place-items-center rounded-full bg-white
+            text-muted shadow-soft ring-1 ring-black/5 active:scale-95"
+        >
+          <CaretRight size={18} weight="bold" />
+        </button>
+      </div>
+
       {/* snap отключаем на время перетаскивания — иначе он дерётся
           с автопрокруткой dnd-kit и доска дёргается */}
       <div
-        className={`flex gap-3 overflow-x-auto no-scrollbar
-          -mx-4 px-4 pb-2 items-start
-          ${active ? '' : 'snap-x snap-mandatory md:snap-none'}`}
+        ref={scrollerRef}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        className={`flex gap-3 overflow-x-auto touch-pan-x overscroll-x-contain
+          -mx-4 px-4 pb-3 items-start scroll-px-4
+          ${active ? '' : 'snap-x snap-proximity md:snap-none'}`}
       >
         {COLUMNS.map((column) => (
           <Column
@@ -113,6 +145,9 @@ export default function BoardView({
             onAck={onAck}
           />
         ))}
+        {/* Конечный flex-элемент не даёт iOS «съесть» правый padding:
+            последняя колонка долистывается целиком. */}
+        <div aria-hidden="true" className="w-px shrink-0 self-stretch" />
       </div>
 
       <DragOverlay dropAnimation={{ duration: 300, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }}>

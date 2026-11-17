@@ -101,6 +101,15 @@ export async function login(loginName: string, password: string): Promise<void> 
   setMe(user)
 }
 
+export async function register(name: string, loginName: string, password: string): Promise<void> {
+  const { token, user } = await apiFetch<{ token: string; user: Me }>('/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, login: loginName, password }),
+  })
+  setToken(token)
+  setMe(user)
+}
+
 /** Освежить «кто я» (имя/права могли поменяться). */
 export async function refreshMe(): Promise<Me> {
   const me = await apiFetch<Me>('/me')
